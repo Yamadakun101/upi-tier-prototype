@@ -1,0 +1,505 @@
+<title>UPI Tiered Access</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a phone-frame stage. A tier switcher picks Standard/Elderly/Kids;
+   each tier renders its own bottom-nav-driven set of screens, modeled on a
+   real UPI app's dark theme so the comparison reads as "same app, less app". */
+:root{
+  --page-bg:#eceae4; --ink:#17161c; --muted:#6f6a61;
+  --phone-bg:#000000; --surface:#131216; --surface-2:#1c1b20; --line:#2a2930;
+  --fg:#f4f2ee; --fg-dim:#a9a6ac;
+  --accent:#9a5cff; --accent-soft:#241c38;
+  --good:#34c77a; --warn:#ffb648;
+  --bezel:#060608;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --page-bg:#0c0b0e; --ink:#f1efe9; --muted:#8e897f; }
+}
+:root[data-theme="dark"]{ --page-bg:#0c0b0e; --ink:#f1efe9; --muted:#8e897f; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body{
+  margin:0; background:var(--page-bg); color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-block:28px 48px; min-height:100%;
+}
+h1{ font-family:'Fraunces','Georgia',serif; text-wrap:balance; margin:0; }
+.wrap{ max-width:960px; margin:0 auto; }
+
+.intro{ max-width:620px; margin:0 auto 22px; text-align:center; }
+.eyebrow{
+  display:inline-block; font-size:.7rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--accent); background:var(--accent-soft); padding:4px 10px; border-radius:999px;
+  margin-bottom:10px; font-weight:700;
+}
+.intro h1{ font-size:clamp(1.35rem,4vw,1.9rem); font-weight:600; color:var(--ink); }
+.intro p{ color:var(--muted); font-size:.9rem; line-height:1.5; margin:8px 0 0; }
+
+.switch{
+  display:flex; gap:5px; justify-content:center; flex-wrap:wrap;
+  margin:20px auto 26px; background:var(--surface); border:1px solid var(--line);
+  padding:5px; border-radius:14px; max-width:420px;
+}
+.switch button{
+  flex:1; min-width:100px; border:none; background:transparent; color:var(--fg-dim);
+  font:inherit; font-size:.82rem; font-weight:600; padding:9px 10px; border-radius:10px;
+  cursor:pointer; transition:background .15s, color .15s;
+}
+.switch button[aria-pressed="true"]{ background:var(--accent); color:#fff; }
+
+.stage{ display:flex; justify-content:center; }
+.phone{
+  width:300px; max-width:100%; background:var(--bezel); border-radius:38px;
+  padding:10px; box-shadow:0 30px 60px -20px rgba(0,0,0,.45);
+}
+.screen{
+  background:var(--phone-bg); color:var(--fg); border-radius:26px; overflow:hidden;
+  min-height:600px; max-height:600px; display:flex; flex-direction:column; position:relative;
+}
+.notch{ height:20px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+.notch::after{ content:""; width:60px; height:5px; border-radius:4px; background:#000; }
+
+.statusbar{
+  flex:0 0 auto; display:flex; justify-content:space-between; padding:0 16px 4px;
+  font-size:.68rem; color:var(--fg-dim); font-variant-numeric:tabular-nums;
+}
+.scroll-area{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.scroll-area::-webkit-scrollbar{ width:0; }
+
+.app-header{
+  display:flex; align-items:center; justify-content:space-between; padding:6px 16px 14px;
+}
+.avatar{
+  width:32px; height:32px; border-radius:50%; background:var(--surface-2);
+  display:flex; align-items:center; justify-content:center; font-size:.8rem; font-weight:700;
+  border:1.5px solid var(--line); position:relative;
+}
+.avatar .qrbadge{
+  position:absolute; bottom:-3px; right:-3px; width:14px; height:14px; border-radius:4px;
+  background:var(--accent); color:#fff; font-size:.5rem; display:flex; align-items:center; justify-content:center;
+}
+.help-ic{
+  width:28px; height:28px; border-radius:50%; border:1.3px solid var(--fg-dim); color:var(--fg-dim);
+  display:flex; align-items:center; justify-content:center; font-size:.72rem;
+}
+
+/* ---- section label row ---- */
+.sec-row{ display:flex; align-items:center; justify-content:space-between; padding:0 16px; margin:16px 0 10px; }
+.sec-row h3{ font-size:.92rem; font-weight:700; margin:0; color:var(--fg); }
+.pill{ font-size:.66rem; font-weight:700; color:var(--accent); background:var(--accent-soft); padding:4px 9px; border-radius:999px; }
+
+/* ---- icon grid (standard, dense) ---- */
+.grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px 6px; padding:0 16px; }
+.tile{ display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; background:none; border:none; color:inherit; font:inherit; cursor:pointer; padding:0; }
+.tile .ic{ width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:1.15rem; }
+.tile span{ font-size:.63rem; color:var(--fg); line-height:1.2; }
+
+.strip-banner{
+  margin:14px 16px 0; border-radius:12px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between;
+  background:var(--surface-2); font-size:.68rem; font-weight:600; color:var(--fg-dim);
+}
+.strip-banner b{ color:var(--fg); }
+
+.loan-banner{
+  margin:16px 16px 0; border-radius:16px; padding:14px; background:linear-gradient(135deg,#3a2a66,#1b1230);
+  color:#fff;
+}
+.loan-banner .cap{ font-size:.66rem; opacity:.8; }
+.loan-banner .amt{ font-family:'Fraunces',serif; font-size:1.15rem; margin:3px 0 8px; }
+.loan-banner button{
+  border:none; background:#fff; color:#1b1230; font-weight:700; font-size:.7rem; padding:6px 14px; border-radius:999px;
+}
+
+/* ---- bottom nav ---- */
+.bottomnav{
+  flex:0 0 auto; display:flex; align-items:center; justify-content:space-around;
+  padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px)); border-top:1px solid var(--line); background:var(--phone-bg);
+}
+.navbtn{
+  background:none; border:none; color:var(--fg-dim); font:inherit; font-size:.58rem; font-weight:600;
+  display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; padding:2px 4px;
+}
+.navbtn .nic{ width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:1rem; }
+.navbtn[aria-current="true"]{ color:var(--fg); }
+.navbtn.fab .nic{
+  width:40px; height:40px; border-radius:50%; background:var(--accent); color:#fff; font-size:1.15rem; margin-top:-16px;
+  box-shadow:0 6px 14px -4px rgba(154,92,255,.6);
+}
+
+/* ---- balance card (elderly/kids) ---- */
+.balance-card{
+  margin:0 16px 16px; background:linear-gradient(135deg,var(--accent),#6d33cc); color:#fff; border-radius:18px; padding:16px 18px;
+}
+.balance-card .label{ font-size:.68rem; opacity:.85; letter-spacing:.03em; text-transform:uppercase; }
+.balance-card .amount{ font-family:'Fraunces',serif; font-size:1.5rem; margin-top:4px; font-variant-numeric:tabular-nums; }
+
+.grid-big{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; padding:0 16px; }
+.tile-big{
+  background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 10px; text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:7px; color:inherit; font:inherit; cursor:pointer;
+}
+.tile-big .ic{ font-size:1.6rem; }
+.tile-big span{ font-size:.78rem; font-weight:700; color:var(--fg); }
+
+.grid-kid{ display:grid; grid-template-columns:1fr; gap:12px; padding:0 16px; }
+.tile-kid{
+  background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:18px; text-align:left;
+  display:flex; align-items:center; gap:14px; color:inherit; font:inherit; cursor:pointer;
+}
+.tile-kid .ic{ font-size:1.7rem; }
+.tile-kid span{ font-size:.92rem; font-weight:700; color:var(--fg); }
+
+.contact-row{ display:flex; gap:12px; padding:0 16px; margin-top:4px; overflow-x:auto; }
+.contact{ display:flex; flex-direction:column; align-items:center; gap:6px; flex:0 0 auto; background:none; border:none; color:inherit; font:inherit; cursor:pointer; }
+.contact .av{
+  width:50px; height:50px; border-radius:50%; background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem;
+}
+.contact span{ font-size:.66rem; color:var(--fg-dim); }
+
+.guardian-note{
+  margin:16px 16px 0; padding:11px 13px; border-radius:12px; border:1px dashed var(--line);
+  font-size:.68rem; color:var(--fg-dim); text-align:center;
+}
+
+/* ---- scan screen ---- */
+.scan-screen{ padding:14px 16px 0; }
+.scan-person{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.scan-person .av{ width:46px; height:46px; border-radius:50%; background:var(--surface-2); border:1px solid var(--line); }
+.scan-person b{ display:block; font-size:.95rem; }
+.scan-person span{ font-size:.7rem; color:var(--fg-dim); }
+.scan-alert{
+  background:var(--surface-2); border-radius:12px; padding:10px 12px; margin-bottom:14px; font-size:.68rem; color:var(--fg-dim);
+  display:flex; align-items:center; gap:8px; justify-content:space-between;
+}
+.scan-alert button{ background:var(--accent); color:#fff; border:none; border-radius:999px; padding:6px 14px; font-size:.68rem; font-weight:700; }
+.qrbox{ background:var(--surface); border-radius:16px; padding:18px; text-align:center; }
+.qr-art{ width:100%; aspect-ratio:1; background:
+  repeating-conic-gradient(#fff 0% 25%, #000 0% 50%) 0 0/16px 16px; border-radius:8px; position:relative; }
+.qr-art::after{ content:"₹"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:2rem; background:#000; color:#fff; width:48px; height:48px; border-radius:50%; margin:auto; }
+.qrbox .bank{ margin-top:10px; font-size:.78rem; font-weight:600; }
+.pay-btn{
+  display:block; width:100%; margin-top:16px; background:var(--accent); color:#fff; border:none; border-radius:12px;
+  padding:12px; font-size:.85rem; font-weight:700; cursor:pointer;
+}
+.success{
+  margin:14px 16px 0; background:var(--surface); border:1px solid var(--good); border-radius:14px; padding:14px; text-align:center;
+}
+.success .tick{ font-size:1.6rem; color:var(--good); }
+.success b{ display:block; margin-top:4px; font-size:.9rem; }
+.success span{ font-size:.72rem; color:var(--fg-dim); }
+
+/* ---- history ---- */
+.hist-search{ margin:0 16px 10px; background:var(--surface); border-radius:999px; padding:10px 14px; font-size:.75rem; color:var(--fg-dim); }
+.hist-month{ padding:8px 16px; background:var(--surface); font-size:.74rem; font-weight:700; color:var(--fg-dim); display:flex; justify-content:space-between; }
+.hist-item{ display:flex; align-items:center; gap:12px; padding:10px 16px; }
+.hist-item .ic{ width:34px; height:34px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; }
+.hist-item .meta{ flex:1; min-width:0; }
+.hist-item b{ display:block; font-size:.8rem; }
+.hist-item .sub{ font-size:.65rem; color:var(--fg-dim); }
+.hist-item .amt{ font-size:.82rem; font-weight:700; font-variant-numeric:tabular-nums; }
+.amt.pos{ color:var(--good); }
+
+/* ---- alerts ---- */
+.alert-card{ margin:14px 16px; background:var(--surface); border-radius:14px; padding:14px; display:flex; gap:10px; }
+.alert-card .ic{ width:34px; height:34px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.alert-card .body{ font-size:.75rem; line-height:1.45; color:var(--fg-dim); }
+.alert-card .body b{ color:var(--fg); }
+.offer-zone-label{ padding:0 16px; font-size:.68rem; letter-spacing:.06em; color:var(--fg-dim); text-transform:uppercase; margin-bottom:8px; }
+.offer-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:0 16px; }
+.offer-tile{ background:var(--surface); border-radius:12px; padding:14px 8px; text-align:center; font-size:.68rem; font-weight:700; }
+.offer-tile .ic{ font-size:1.2rem; margin-bottom:6px; }
+
+/* ---- help screen (elderly) ---- */
+.help-screen{ padding:20px 16px; }
+.help-card{ background:var(--surface); border-radius:16px; padding:18px; text-align:center; margin-bottom:12px; }
+.help-card .ic{ font-size:1.8rem; }
+.help-card b{ display:block; margin:8px 0 4px; font-size:.95rem; }
+.help-card span{ font-size:.72rem; color:var(--fg-dim); }
+.help-btn{ display:block; width:100%; background:var(--accent); color:#fff; border:none; border-radius:12px; padding:12px; font-weight:700; font-size:.85rem; margin-top:8px; }
+
+footer.page{ max-width:620px; margin:38px auto 0; text-align:center; color:var(--muted); font-size:.76rem; line-height:1.6; }
+footer.page b{ color:var(--ink); }
+footer.page .removed{ margin-top:6px; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <span class="eyebrow">UPI Accessibility Prototype</span>
+    <h1>One app, three ways in</h1>
+    <p>A tier-selection screen at setup routes each user to an interface matched to their comfort level. Tap the bottom nav and the home-screen buttons — it's a working mockup.</p>
+  </div>
+
+  <div class="switch" role="tablist" aria-label="Choose a tier to preview">
+    <button id="btn-standard" aria-pressed="true" onclick="setTier('standard')">Standard</button>
+    <button id="btn-elderly" aria-pressed="false" onclick="setTier('elderly')">Elderly</button>
+    <button id="btn-kids" aria-pressed="false" onclick="setTier('kids')">Kids</button>
+  </div>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="statusbar"><span id="clock">10:37</span><span>●●●● 4G 70%</span></div>
+        <div class="scroll-area" id="screen-body"></div>
+        <div class="bottomnav" id="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="page" id="footer-note"></footer>
+</div>
+
+<script>
+const state = { tier: "standard", tab: "home" };
+
+const notes = {
+  standard: "Everything unlocked — <b>offers, loans, UPI Lite, credit score, insurance</b> alongside payments. Unchanged from today's app.",
+  elderly: "Keeps <b>card adding, bill pay, CIBIL check</b> for real independence.<div class='removed'>Removes offers, loans, UPI Lite and investment prompts — just 3 bottom-nav items instead of 5.</div>",
+  kids: "Just <b>scan, 4 fixed contacts, balance</b>.<div class='removed'>No settings, no history tab — only Home and Scan. A linked guardian can see every payment (shown as a concept here).</div>"
+};
+
+const navs = {
+  standard: [
+    {id:"home", label:"Home", icon:"⌂"},
+    {id:"search", label:"Search", icon:"⌕"},
+    {id:"scan", label:"", icon:"▦", fab:true},
+    {id:"alerts", label:"Alerts", icon:"🔔"},
+    {id:"history", label:"History", icon:"🕘"},
+  ],
+  elderly: [
+    {id:"home", label:"Home", icon:"⌂"},
+    {id:"scan", label:"", icon:"▦", fab:true},
+    {id:"help", label:"Help", icon:"☎"},
+  ],
+  kids: [
+    {id:"home", label:"Home", icon:"⌂"},
+    {id:"scan", label:"", icon:"▦", fab:true},
+  ],
+};
+
+function initials(name){ return name[0].toUpperCase(); }
+
+/* ---------- STANDARD ---------- */
+function standardHome(){
+  return `
+    <div class="app-header">
+      <div class="avatar">R<span class="qrbadge">▦</span></div>
+      <div class="help-ic">?</div>
+    </div>
+    <div class="loan-banner">
+      <div class="cap">Personal loan</div>
+      <div class="amt">Up to ₹10,00,000</div>
+      <button>Apply now →</button>
+    </div>
+    <div class="sec-row"><h3>Money Transfers</h3><span class="pill">Refer ₹1200</span></div>
+    <div class="grid4">
+      ${tile("📱","To Mobile\\nNumber","#2d3a63")}
+      ${tile("🏦","To Bank &\\nSelf A/c","#2d3a63")}
+      ${tile("👛","PhonePe\\nWallet","#5a3a1a")}
+      ${tile("💰","Check\\nBalance","#2d3a63")}
+    </div>
+    <div class="sec-row"><h3>Recharge &amp; Bills</h3></div>
+    <div class="grid4">
+      ${tile("📶","Mobile\\nRecharge","#1a3a52")}
+      ${tile("🏠","Rent via\\nCard","#3a2a1a")}
+      ${tile("💡","Electricity\\nBill","#3a3214")}
+      ${tile("📅","Loan\\nRepayment","#3a1a1a")}
+    </div>
+    <div class="sec-row"><h3>Loans &amp; Investments</h3></div>
+    <div class="grid4">
+      ${tile("👤","Personal\\nLoan","#2a1a3a")}
+      ${tile("📈","Mutual\\nFunds","#1a3a2e")}
+      ${tile("🥇","Gold\\nLoan","#3a3214")}
+      ${tile("📊","Credit\\nScore","#1a2e3a")}
+    </div>
+    <div style="height:14px"></div>
+  `;
+}
+function tile(ic,label,bg){
+  const [l1,l2] = label.split("\\n");
+  return `<button class="tile"><div class="ic" style="background:${bg}">${ic}</div><span>${l1}${l2?"<br>"+l2:""}</span></button>`;
+}
+
+function standardSearch(){
+  return `
+    <div class="app-header"><div class="avatar">R</div><div class="help-ic">?</div></div>
+    <div style="padding:0 16px"><h3 style="margin:0 0 10px">Search</h3>
+      <div class="hist-search" style="display:flex;align-items:center;gap:8px">⌕ <span>Ask PhonePe AI</span></div>
+    </div>
+    <div class="sec-row"><h3>Popular</h3></div>
+    <div class="grid4">
+      ${tile("📊","Credit\\nScore","#3a3214")}
+      ${tile("📶","Mobile\\nRecharge","#1a3a52")}
+      ${tile("📅","Loan\\nRepayment","#3a2a1a")}
+      ${tile("🚗","FASTag\\nRecharge","#1a3a2e")}
+    </div>`;
+}
+
+function standardScan(){
+  const alertShown = state._scanAlertDismissed ? "" : `
+    <div class="scan-alert"><span>Not receiving money on PhonePe?</span><button onclick="dismissScanAlert()">Allow</button></div>`;
+  return `
+    <div class="app-header"><div class="avatar">R</div><div class="help-ic">?</div></div>
+    <div class="scan-screen">
+      <div class="scan-person"><div class="av"></div><div><b>Rajesh.j</b><span>+91 98451 14154</span></div></div>
+      ${alertShown}
+      <div class="qrbox"><div class="qr-art"></div><div class="bank">🏦 Bank Of Baroda – 0711</div></div>
+      <button class="pay-btn" onclick="simulatePay('standard')">Pay ₹500 to Rajesh</button>
+      <div id="standard-success"></div>
+    </div>`;
+}
+
+function standardAlerts(){
+  return `
+    <div class="app-header"><div class="avatar">R</div><div class="help-ic">?</div></div>
+    <div style="padding:0 16px"><h3 style="margin:0 0 4px">Alerts</h3></div>
+    <div class="alert-card">
+      <div class="ic">₹</div>
+      <div class="body"><b>AutoPay debit of ₹50</b> for Jar Gold is scheduled within the next 48 hours. Please ensure sufficient funds.</div>
+    </div>
+    <div class="offer-zone-label">Offer Zone</div>
+    <div class="offer-grid">
+      <div class="offer-tile"><div class="ic">🎁</div>Offers<br>for you</div>
+      <div class="offer-tile"><div class="ic">⭐</div>Most<br>Popular</div>
+      <div class="offer-tile"><div class="ic">→</div>All<br>Offers</div>
+    </div>`;
+}
+
+function standardHistory(){
+  const rows = [
+    {ic:"↗", name:"Payment to Jar Gold", sub:"AutoPay · 16 hours ago", amt:"₹50", pos:false},
+    {ic:"↗", name:"Paid to Somashekhara", sub:"1 day ago", amt:"₹1,000", pos:false},
+    {ic:"↙", name:"Received from Angadi Harish", sub:"1 day ago", amt:"+₹10,000", pos:true},
+  ];
+  return `
+    <div class="app-header"><div class="avatar">R</div><div class="help-ic">?</div></div>
+    <div style="padding:0 16px"><h3 style="margin:0 0 10px">History</h3></div>
+    <div class="hist-search">⌕ Search</div>
+    <div class="hist-month"><span>November 2026</span><span>₹50</span></div>
+    <div class="hist-item"><div class="ic">${rows[0].ic}</div><div class="meta"><b>${rows[0].name}</b><div class="sub">${rows[0].sub}</div></div><div class="amt">${rows[0].amt}</div></div>
+    <div class="hist-month"><span>October 2026</span><span style="color:var(--good)">+₹70,351</span></div>
+    <div class="hist-item"><div class="ic">${rows[1].ic}</div><div class="meta"><b>${rows[1].name}</b><div class="sub">${rows[1].sub}</div></div><div class="amt">${rows[1].amt}</div></div>
+    <div class="hist-item"><div class="ic">${rows[2].ic}</div><div class="meta"><b>${rows[2].name}</b><div class="sub">${rows[2].sub}</div></div><div class="amt amt-pos" style="color:var(--good)">${rows[2].amt}</div></div>
+  `;
+}
+
+/* ---------- ELDERLY ---------- */
+function elderlyHome(){
+  return `
+    <div class="app-header"><div class="avatar">M</div><div class="help-ic">?</div></div>
+    <div class="balance-card"><div class="label">Your balance</div><div class="amount">₹ 12,480.50</div></div>
+    <div class="sec-row"><h3>What would you like to do?</h3></div>
+    <div class="grid-big">
+      <button class="tile-big" onclick="goto('scan')"><div class="ic">📷</div><span>Scan &amp; Pay</span></button>
+      <button class="tile-big" onclick="goto('help')"><div class="ic">💳</div><span>Add Card</span></button>
+      <button class="tile-big" onclick="goto('help')"><div class="ic">🧾</div><span>Pay a Bill</span></button>
+      <button class="tile-big" onclick="goto('help')"><div class="ic">📊</div><span>My CIBIL Score</span></button>
+    </div>
+    <div class="sec-row"><h3>Send to someone</h3></div>
+    <div class="contact-row">
+      ${["Priya","Arun","Ravi","Lata"].map(n=>`<button class="contact" onclick="goto('scan')"><div class="av">${initials(n)}</div><span>${n}</span></button>`).join("")}
+    </div>
+    <div style="height:12px"></div>
+  `;
+}
+function elderlyScan(){
+  return `
+    <div class="app-header"><div class="avatar">M</div><div class="help-ic">?</div></div>
+    <div class="scan-screen">
+      <div class="scan-person"><div class="av"></div><div><b>Priya</b><span>Saved contact</span></div></div>
+      <div class="qrbox"><div class="qr-art"></div><div class="bank">🏦 Linked account – 0711</div></div>
+      <button class="pay-btn" onclick="simulatePay('elderly')">Pay ₹500 to Priya</button>
+      <div id="elderly-success"></div>
+    </div>`;
+}
+function elderlyHelp(){
+  return `
+    <div class="app-header"><div class="avatar">M</div><div class="help-ic">?</div></div>
+    <div class="help-screen">
+      <div class="help-card"><div class="ic">☎</div><b>Need a hand?</b><span>Talk to a real person, not a bot.</span><button class="help-btn">Call for Help</button></div>
+      <div class="help-card"><div class="ic">💳</div><b>Add Card</b><span>We'll guide you step by step.</span></div>
+      <div class="help-card"><div class="ic">🧾</div><b>Pay a Bill</b><span>Electricity, water, gas — pick one.</span></div>
+    </div>`;
+}
+
+/* ---------- KIDS ---------- */
+function kidsHome(){
+  return `
+    <div class="app-header"><div class="avatar">K</div><div class="help-ic">?</div></div>
+    <div class="balance-card"><div class="label">Balance</div><div class="amount">₹ 450.00</div></div>
+    <div class="sec-row"><h3>Go ahead</h3></div>
+    <div class="grid-kid">
+      <button class="tile-kid" onclick="goto('scan')"><div class="ic">📷</div><span>Scan to pay</span></button>
+      <button class="tile-kid" onclick="goto('scan')"><div class="ic">👋</div><span>Send to a friend</span></button>
+    </div>
+    <div class="sec-row"><h3>Your people</h3></div>
+    <div class="contact-row">
+      ${["Amma","Appa","Nina","Dev"].map(n=>`<button class="contact" onclick="goto('scan')"><div class="av">${initials(n)}</div><span>${n}</span></button>`).join("")}
+    </div>
+    <div class="guardian-note">👀 Appa can see every payment you make</div>
+  `;
+}
+function kidsScan(){
+  return `
+    <div class="app-header"><div class="avatar">K</div><div class="help-ic">?</div></div>
+    <div class="scan-screen">
+      <div class="scan-person"><div class="av"></div><div><b>Nina</b><span>Your friend</span></div></div>
+      <div class="qrbox"><div class="qr-art"></div><div class="bank">🏦 Linked to Appa's account</div></div>
+      <button class="pay-btn" onclick="simulatePay('kids')">Send ₹50 to Nina</button>
+      <div id="kids-success"></div>
+    </div>`;
+}
+
+const renderers = {
+  standard: { home: standardHome, search: standardSearch, scan: standardScan, alerts: standardAlerts, history: standardHistory },
+  elderly:  { home: elderlyHome, scan: elderlyScan, help: elderlyHelp },
+  kids:     { home: kidsHome, scan: kidsScan },
+};
+
+function renderNav(){
+  const items = navs[state.tier];
+  document.getElementById("bottom-nav").innerHTML = items.map(it=>{
+    if(it.fab){
+      return `<button class="navbtn fab" aria-current="${state.tab===it.id}" onclick="goto('${it.id}')"><div class="nic">${it.icon}</div></button>`;
+    }
+    return `<button class="navbtn" aria-current="${state.tab===it.id}" onclick="goto('${it.id}')"><div class="nic">${it.icon}</div><span>${it.label}</span></button>`;
+  }).join("");
+}
+
+function renderScreen(){
+  const fn = (renderers[state.tier] && renderers[state.tier][state.tab]) || renderers[state.tier].home;
+  document.getElementById("screen-body").innerHTML = fn();
+  document.getElementById("footer-note").innerHTML = notes[state.tier];
+  renderNav();
+}
+
+function goto(tab){ state.tab = tab; renderScreen(); }
+
+function dismissScanAlert(){ state._scanAlertDismissed = true; renderScreen(); }
+
+function simulatePay(tier){
+  const box = document.getElementById(tier+"-success");
+  if(box){
+    box.innerHTML = `<div class="success"><div class="tick">✓</div><b>Payment sent</b><span>This is a demo confirmation — no real money moved.</span></div>`;
+  }
+}
+
+function setTier(tier){
+  state.tier = tier; state.tab = "home"; state._scanAlertDismissed = false;
+  ["standard","elderly","kids"].forEach(t=>{
+    document.getElementById("btn-"+t).setAttribute("aria-pressed", t===tier ? "true":"false");
+  });
+  renderScreen();
+  try{ localStorage.setItem("upi-tier-last", tier); }catch(e){}
+}
+
+function boot(){
+  let last = "standard";
+  try{ last = localStorage.getItem("upi-tier-last") || "standard"; }catch(e){}
+  setTier(last);
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot();
+</script>
